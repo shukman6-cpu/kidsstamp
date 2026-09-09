@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+	<title></title>
+	<meta name="generator" content="LibreOffice 26.8.0.3 (Linux)"/>
+	<meta name="created" content="00:00:00"/>
+	<meta name="changed" content="00:00:00"/>
+	<style type="text/css">
+		@page { size: 8.27in 11.69in; margin: 0.79in }
+		p { margin-bottom: 0.1in; line-height: 115%; background: transparent }
+		pre { font-size: 10pt; font-family: "Liberation Mono", monospace; background: transparent }
+	</style>
+</head>
+<body lang="en-US" link="#000080" vlink="#800000" dir="ltr"><pre>&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;zh-HK&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no&quot;&gt;
+  &lt;title&gt;<span lang="zh-CN">好行為集章卡</span>&lt;/title&gt;
+  
+  &lt;!-- PWA App <span lang="zh-CN">手機桌面圖示與全螢幕設定 </span>--&gt;
+  &lt;meta name=&quot;apple-mobile-web-app-capable&quot; content=&quot;yes&quot;&gt;
+  &lt;meta name=&quot;apple-mobile-web-app-status-bar-style&quot; content=&quot;black-translucent&quot;&gt;
+  &lt;meta name=&quot;apple-mobile-web-app-title&quot; content=&quot;<span lang="zh-CN">集章卡</span>&quot;&gt;
+  &lt;link rel=&quot;apple-touch-icon&quot; href=&quot;https://cdn-icons-png.flaticon.com/512/3135/3135715.png&quot;&gt;
+
+  &lt;!-- <span lang="zh-CN">引入 </span>Firebase <span lang="zh-CN">雲端資料庫 </span>SDK (v8 <span lang="zh-CN">輕量版</span>) --&gt;
+  &lt;script src=&quot;https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js&quot;&gt;&lt;/script&gt;
+  &lt;script src=&quot;https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js&quot;&gt;&lt;/script&gt;
+
+  &lt;style&gt;
+    :root {
+      --primary: #FF85A1;
+      --bg: #FFF0F5;
+      --card-bg: #FFFFFF;
+      --text: #4A4A4A;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .app-container { width: 100%; max-width: 480px; }
+    .tabs {
+      display: flex; background: #FFE4E1; border-radius: 24px; padding: 6px; margin-bottom: 16px;
+    }
+    .tab-btn {
+      flex: 1; border: none; background: transparent; padding: 10px; font-size: 16px; font-weight: bold;
+      border-radius: 20px; color: #888; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .tab-btn.active { background: var(--card-bg); color: var(--primary); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+    .avatar-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); background: #FFF; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .card { background: var(--card-bg); border-radius: 20px; padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .wish-header { display: flex; justify-content: space-between; align-items: center; }
+    .wish-title { font-size: 17px; font-weight: bold; color: #222; }
+    .btn-group-sm { display: flex; gap: 6px; }
+    .edit-btn { background: #F0F0F0; border: none; padding: 6px 10px; border-radius: 12px; font-size: 12px; cursor: pointer; }
+    .archive-btn { background: #FFE6EC; color: var(--primary); border: 1px solid var(--primary); padding: 6px 10px; border-radius: 12px; font-size: 12px; cursor: pointer; font-weight: bold; }
+    .progress-bar-bg { background: #EFEFEF; height: 12px; border-radius: 6px; margin: 12px 0 6px 0; overflow: hidden; }
+    .progress-bar-fill { background: var(--primary); height: 100%; width: 0%; transition: width 0.3s; }
+    .progress-text { font-size: 12px; color: #666; text-align: right; }
+    
+    .stamp-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 12px; }
+    .stamp-box {
+      aspect-ratio: 1; border: 2px dashed #FFC0CB; border-radius: 50%; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #CCC; position: relative; background: #FAF8F9; overflow: hidden;
+      cursor: pointer; transition: all 0.2s ease;
+    }
+    .stamp-box:active { transform: scale(0.92); }
+    .stamp-box.next-stamp { border: 2px dashed var(--primary); background: #FFF5F7; color: var(--primary); }
+    .stamp-box.next-stamp::after { content: &quot;➕&quot;; font-size: 14px; margin-top: 2px; }
+    .stamp-box.stamped { border: 2px solid var(--primary); background: #FFE6EC; color: var(--primary); animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .stamp-box img { width: 100%; height: 100%; object-fit: cover; }
+    .stamp-box .date { position: absolute; bottom: 2px; background: rgba(255, 255, 255, 0.85); padding: 0 4px; border-radius: 4px; font-size: 8px; color: #FF5A83; font-weight: bold; }
+    @keyframes pop { 0% { transform: scale(0.5); } 100% { transform: scale(1); } }
+    
+    .history-title { font-weight: bold; margin-bottom: 10px; font-size: 15px; }
+    .history-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #F0F0F0; font-size: 13px; }
+    .history-date { color: #888; }
+    
+    .archive-card { 
+      background: #FFF9FA; border: 1px solid #FFE6EC; border-radius: 12px; padding: 10px 12px; 
+      margin-bottom: 8px; font-size: 13px; cursor: pointer; transition: background 0.2s; 
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .archive-card:active { background: #FFEBF0; }
+    .archive-title { font-weight: bold; color: var(--primary); margin-bottom: 2px; }
+    .upload-settings { background: #FFF; border-radius: 16px; padding: 12px; margin-bottom: 16px; border: 1px solid #FFE4E1; font-size: 12px; }
+    .upload-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .upload-row:last-child { margin-bottom: 0; }
+    .sync-status { text-align: center; font-size: 11px; color: #888; margin-bottom: 8px; }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+
+&lt;div class=&quot;app-container&quot;&gt;
+  &lt;div class=&quot;sync-status&quot; id=&quot;syncStatus&quot;&gt;☁️ <span lang="zh-CN">正在連線至雲端同步</span>...&lt;/div&gt;
+
+  &lt;div class=&quot;tabs&quot;&gt;
+    &lt;button class=&quot;tab-btn active&quot; onclick=&quot;switchChild('elder')&quot;&gt;
+      &lt;div id=&quot;avatarElder&quot; class=&quot;avatar-img&quot;&gt;👧&lt;/div&gt; <span lang="zh-CN">詩詩</span>
+    &lt;/button&gt;
+    &lt;button class=&quot;tab-btn&quot; onclick=&quot;switchChild('younger')&quot;&gt;
+      &lt;div id=&quot;avatarYounger&quot; class=&quot;avatar-img&quot;&gt;👧&lt;/div&gt; <span lang="zh-CN">韻韻</span>
+    &lt;/button&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;card&quot;&gt;
+    &lt;div class=&quot;wish-header&quot;&gt;
+      &lt;div class=&quot;wish-title&quot; id=&quot;wishDisplay&quot;&gt;<span lang="zh-CN">願望：載入中</span>...&lt;/div&gt;
+      &lt;div class=&quot;btn-group-sm&quot;&gt;
+        &lt;button class=&quot;edit-btn&quot; onclick=&quot;editWish()&quot;&gt;<span lang="zh-CN">修改願望</span>&lt;/button&gt;
+        &lt;button class=&quot;archive-btn&quot; onclick=&quot;archiveAndNew()&quot;&gt;📦 <span lang="zh-CN">歸檔</span>&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;progress-bar-bg&quot;&gt;&lt;div class=&quot;progress-bar-fill&quot; id=&quot;progressFill&quot;&gt;&lt;/div&gt;&lt;/div&gt;
+    &lt;div class=&quot;progress-text&quot; id=&quot;progressText&quot;&gt;0 / 30 <span lang="zh-CN">印章</span>&lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;upload-settings&quot;&gt;
+    &lt;div style=&quot;font-weight:bold; margin-bottom:8px; color:var(--primary);&quot;&gt;📷 <span lang="zh-CN">圖片設定（上傳後全家人手機連動）：</span>&lt;/div&gt;
+    &lt;div class=&quot;upload-row&quot;&gt;
+      &lt;span&gt;<span lang="zh-CN">替換當前主角頭像：</span>&lt;/span&gt;
+      &lt;input type=&quot;file&quot; id=&quot;avatarInput&quot; accept=&quot;image/*&quot; onchange=&quot;handleFileUpload(event, 'avatar')&quot;&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;upload-row&quot;&gt;
+      &lt;span&gt;<span lang="zh-CN">替換蓋印章圖案：</span>&lt;/span&gt;
+      &lt;input type=&quot;file&quot; id=&quot;stampInput&quot; accept=&quot;image/*&quot; onchange=&quot;handleFileUpload(event, 'stamp')&quot;&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;card&quot;&gt;
+    &lt;div class=&quot;history-title&quot;&gt;👇 <span lang="zh-CN">點擊格子蓋章 </span>/ <span lang="zh-CN">修改已蓋印章</span>&lt;/div&gt;
+    &lt;div class=&quot;stamp-grid&quot; id=&quot;stampGrid&quot;&gt;&lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;card&quot;&gt;
+    &lt;div class=&quot;history-title&quot;&gt;📜 <span lang="zh-CN">本期好事日誌</span>&lt;/div&gt;
+    &lt;div id=&quot;historyList&quot;&gt;&lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;card&quot;&gt;
+    &lt;div class=&quot;history-title&quot;&gt;🏆 <span lang="zh-CN">過往達成願望歷程（點擊可修改</span>/<span lang="zh-CN">刪除）</span>&lt;/div&gt;
+    &lt;div id=&quot;archiveList&quot;&gt;&lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+&lt;script&gt;
+  // ==========================================
+  // 1. <span lang="zh-CN">請在此處填入你向 </span>Firebase <span lang="zh-CN">申請的配置資訊</span>
+  // ==========================================
+  const firebaseConfig = {
+    apiKey: &quot;AIzaSyDmeRItXsjAf3PFXdsSmXa20TgYYefOIRk&quot;,
+  authDomain: &quot;kids-stamp-c378b.firebaseapp.com&quot;,
+  databaseURL: &quot;https://kids-stamp-c378b-default-rtdb.firebaseio.com&quot;,
+  projectId: &quot;kids-stamp-c378b&quot;,
+  storageBucket: &quot;kids-stamp-c378b.firebasestorage.app&quot;,
+  messagingSenderId: &quot;772769266191&quot;,
+  appId: &quot;1:772769266191:web:0f0707b8d7ba22959e417a&quot;,
+  measurementId: &quot;G-9LL6B07G6P&quot;
+};
+
+  // <span lang="zh-CN">初始化 </span>Firebase<span lang="zh-CN">（若已配置則開啟雲端實時同步）</span>
+  let dbRef = null;
+  let isFirebaseActive = false;
+
+  if (firebaseConfig.apiKey !== &quot;YOUR_API_KEY&quot;) {
+    firebase.initializeApp(firebaseConfig);
+    dbRef = firebase.database().ref('stamp_card_data');
+    isFirebaseActive = true;
+  }
+
+  const defaultData = {
+    elder: { name: &quot;<span lang="zh-CN">詩詩</span>&quot;, wish: &quot;<span lang="zh-CN">去海洋公園玩一天</span>&quot;, target: 30, avatar: &quot;&quot;, stampImg: &quot;&quot;, stamps: [], archives: [] },
+    younger: { name: &quot;<span lang="zh-CN">韻韻</span>&quot;, wish: &quot;<span lang="zh-CN">買一盒全新彩色筆</span>&quot;, target: 30, avatar: &quot;&quot;, stampImg: &quot;&quot;, stamps: [], archives: [] }
+  };
+
+  let currentChild = 'elder';
+  let appData = JSON.parse(localStorage.getItem('kids_stamp_v9')) || defaultData;
+
+  // <span lang="zh-CN">儲存資料（同時同步至本地與 </span>Firebase <span lang="zh-CN">雲端）</span>
+  function saveData() {
+    localStorage.setItem('kids_stamp_v9', JSON.stringify(appData));
+    if (isFirebaseActive) {
+      dbRef.set(appData);
+    }
+  }
+
+  // <span lang="zh-CN">監聽 </span>Firebase <span lang="zh-CN">雲端資料變更（當爸爸或你在另一部手機修改時，會自動更新畫面）</span>
+  if (isFirebaseActive) {
+    dbRef.on('value', (snapshot) =&gt; {
+      const data = snapshot.val();
+      if (data) {
+        appData = data;
+        localStorage.setItem('kids_stamp_v9', JSON.stringify(appData));
+        document.getElementById('syncStatus').innerText = '🟢 <span lang="zh-CN">雲端同步中（資料已是最新）</span>';
+        render();
+      }
+    });
+  } else {
+    document.getElementById('syncStatus').innerText = '⚠️ <span lang="zh-CN">目前使用單機模式（尚未設定 </span>Firebase<span lang="zh-CN">）</span>';
+  }
+
+  function compressImage(file, callback) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const max = 200; // <span lang="zh-CN">壓縮頭像</span>/<span lang="zh-CN">印章圖案至 </span>200px <span lang="zh-CN">提升同步速度</span>
+        if (width &gt; height &amp;&amp; width &gt; max) { height *= max / width; width = max; }
+        else if (height &gt; max) { width *= max / height; height = max; }
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        callback(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleFileUpload(event, type) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    compressImage(file, function(base64Img) {
+      if (type === 'avatar') {
+        appData[currentChild].avatar = base64Img;
+      } else if (type === 'stamp') {
+        appData[currentChild].stampImg = base64Img;
+      }
+      saveData();
+      render();
+    });
+  }
+
+  function switchChild(childKey) {
+    currentChild = childKey;
+    document.querySelectorAll('.tab-btn').forEach((btn, idx) =&gt; {
+      btn.classList.toggle('active', (idx === 0 &amp;&amp; childKey === 'elder') || (idx === 1 &amp;&amp; childKey === 'younger'));
+    });
+    render();
+  }
+
+  function renderAvatar(elementId, imgData, defaultEmoji) {
+    const el = document.getElementById(elementId);
+    if (imgData) {
+      el.innerHTML = `&lt;img src=&quot;${imgData}&quot; style=&quot;width:100%;height:100%;border-radius:50%;object-fit:cover;&quot;&gt;`;
+    } else {
+      el.innerText = defaultEmoji;
+    }
+  }
+
+  function render() {
+    const data = appData[currentChild];
+    
+    renderAvatar('avatarElder', appData.elder.avatar, '👧');
+    renderAvatar('avatarYounger', appData.younger.avatar, '👧');
+
+    document.getElementById('wishDisplay').innerText = `<span lang="zh-CN">願望：</span>${data.wish}`;
+    const stampsList = data.stamps || [];
+    const count = stampsList.length;
+    const percent = Math.min((count / data.target) * 100, 100);
+    document.getElementById('progressFill').style.width = `${percent}%`;
+    document.getElementById('progressText').innerText = `${count} / ${data.target} <span lang="zh-CN">印章</span>`;
+
+    const grid = document.getElementById('stampGrid');
+    grid.innerHTML = '';
+
+    for (let i = 0; i &lt; data.target; i++) {
+      const box = document.createElement('div');
+      box.className = 'stamp-box';
+      
+      if (i &lt; count) {
+        box.classList.add('stamped');
+        const stampDate = stampsList[i].date.split('/')[1] + '/' + stampsList[i].date.split('/')[2];
+        if (data.stampImg) {
+          box.innerHTML = `&lt;img src=&quot;${data.stampImg}&quot; alt=&quot;Good job&quot;&gt;&lt;span class=&quot;date&quot;&gt;${stampDate}&lt;/span&gt;`;
+        } else {
+          box.innerHTML = `&lt;span style=&quot;font-size:20px;&quot;&gt;💮&lt;/span&gt;&lt;span class=&quot;date&quot;&gt;${stampDate}&lt;/span&gt;`;
+        }
+        box.onclick = () =&gt; onStampedClick(i);
+
+      } else {
+        if (i === count) {
+          box.classList.add('next-stamp');
+        }
+        box.innerText = i + 1;
+        box.onclick = () =&gt; onBlankClick(i);
+      }
+
+      grid.appendChild(box);
+    }
+
+    const historyList = document.getElementById('historyList');
+    historyList.innerHTML = stampsList.length === 0 
+      ? '&lt;div style=&quot;color:#AAA; text-align:center; font-size:12px; padding:10px;&quot;&gt;<span lang="zh-CN">未有紀錄，點擊上方格子蓋第一個章！</span>&lt;/div&gt;'
+      : [...stampsList].reverse().map(item =&gt; `&lt;div class=&quot;history-item&quot;&gt;&lt;span&gt;${item.reason}&lt;/span&gt;&lt;span class=&quot;history-date&quot;&gt;${item.date}&lt;/span&gt;&lt;/div&gt;`).join('');
+
+    const archiveList = document.getElementById('archiveList');
+    const archives = data.archives || [];
+    if (archives.length === 0) {
+      archiveList.innerHTML = '&lt;div style=&quot;color:#AAA; text-align:center; font-size:12px; padding:10px;&quot;&gt;<span lang="zh-CN">尚未有已歸檔的願望</span>&lt;/div&gt;';
+    } else {
+      archiveList.innerHTML = '';
+      [...archives].reverse().forEach((arc, revIdx) =&gt; {
+        const realIdx = archives.length - 1 - revIdx;
+        const targetText = arc.targetStamps ? ` (${arc.totalStamps}/${arc.targetStamps}<span lang="zh-CN">章</span>)` : ` (${arc.totalStamps}<span lang="zh-CN">個章</span>)`;
+        const card = document.createElement('div');
+        card.className = 'archive-card';
+        card.innerHTML = `
+          &lt;div&gt;
+            &lt;div class=&quot;archive-title&quot;&gt;🎉 ${arc.wish}${targetText}&lt;/div&gt;
+            &lt;div style=&quot;color:#666; font-size:11px;&quot;&gt;<span lang="zh-CN">完成日期：</span>${arc.completedDate}&lt;/div&gt;
+          &lt;/div&gt;
+          &lt;div style=&quot;color:#B5A0A5; font-size:12px;&quot;&gt;✏️&lt;/div&gt;
+        `;
+        card.onclick = () =&gt; onArchiveClick(realIdx);
+        archiveList.appendChild(card);
+      });
+    }
+  }
+
+  function onBlankClick(index) {
+    const data = appData[currentChild];
+    if (!data.stamps) data.stamps = [];
+    if (index &gt; data.stamps.length) {
+      alert(`<span lang="zh-CN">請先點擊第 </span>${data.stamps.length + 1} <span lang="zh-CN">個格子按順序蓋章喔！</span>`);
+      return;
+    }
+    
+    const reason = prompt(`<span lang="zh-CN">今天【</span>${data.name}<span lang="zh-CN">】做了什麼好事？</span>`, '<span lang="zh-CN">幫忙收拾玩具</span>/<span lang="zh-CN">準時完成功課</span>');
+    if (reason &amp;&amp; reason.trim()) {
+      const now = new Date();
+      data.stamps.push({ date: `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`, reason: reason.trim() });
+      saveData();
+      render();
+    }
+  }
+
+  function onStampedClick(index) {
+    const data = appData[currentChild];
+    const item = data.stamps[index];
+    
+    const choice = prompt(`<span lang="zh-CN">【第 </span>${index + 1} <span lang="zh-CN">個印章】</span>\n<span lang="zh-CN">當前好事：</span>${item.reason}\n<span lang="zh-CN">日期：</span>${item.date}\n\n<span lang="zh-CN">請選擇操作：</span>\n<span lang="zh-CN">輸入 </span>1<span lang="zh-CN">：修改好事內容</span>\n<span lang="zh-CN">輸入 </span>2<span lang="zh-CN">：剔走（刪除）這個印章</span>`, '1');
+    
+    if (choice === '1') {
+      const newReason = prompt('<span lang="zh-CN">請修改好事內容：</span>', item.reason);
+      if (newReason &amp;&amp; newReason.trim()) {
+        item.reason = newReason.trim();
+        saveData();
+        render();
+      }
+    } else if (choice === '2') {
+      if (confirm(`<span lang="zh-CN">確定要剔走第 </span>${index + 1} <span lang="zh-CN">個印章嗎？</span>`)) {
+        data.stamps.splice(index, 1);
+        saveData();
+        render();
+      }
+    }
+  }
+
+  function onArchiveClick(index) {
+    const data = appData[currentChild];
+    const arc = data.archives[index];
+    const targetVal = arc.targetStamps || arc.totalStamps;
+    
+    const choice = prompt(`<span lang="zh-CN">【過往歷程管理】</span>\n<span lang="zh-CN">當前願望：</span>${arc.wish}\n<span lang="zh-CN">實收印章：</span>${arc.totalStamps} <span lang="zh-CN">個</span>\n<span lang="zh-CN">目標印章：</span>${targetVal} <span lang="zh-CN">個</span>\n<span lang="zh-CN">完成日期：</span>${arc.completedDate}\n\n<span lang="zh-CN">請選擇操作：</span>\n<span lang="zh-CN">輸入 </span>1<span lang="zh-CN">：修改此筆歷程資料</span>\n<span lang="zh-CN">輸入 </span>2<span lang="zh-CN">：刪除此筆歷程</span>`, '1');
+    
+    if (choice === '1') {
+      const newWish = prompt('<span lang="zh-CN">修改願望名稱：</span>', arc.wish);
+      if (!newWish || !newWish.trim()) return;
+      
+      const newTarget = prompt('<span lang="zh-CN">修改該次目標印章數：</span>', targetVal);
+      const newStamps = prompt('<span lang="zh-CN">修改實際蓋印數量：</span>', arc.totalStamps);
+      const newDate = prompt('<span lang="zh-CN">修改完成日期 </span>(<span lang="zh-CN">例如 </span>2026/3/1)<span lang="zh-CN">：</span>', arc.completedDate);
+      
+      arc.wish = newWish.trim();
+      if (newTarget &amp;&amp; !isNaN(newTarget)) arc.targetStamps = parseInt(newTarget);
+      if (newStamps &amp;&amp; !isNaN(newStamps)) arc.totalStamps = parseInt(newStamps);
+      if (newDate &amp;&amp; newDate.trim()) arc.completedDate = newDate.trim();
+      
+      saveData();
+      render();
+    } else if (choice === '2') {
+      if (confirm(`<span lang="zh-CN">確定要刪除「</span>${arc.wish}<span lang="zh-CN">」這筆過往歷程嗎？刪除後無法恢復喔！</span>`)) {
+        data.archives.splice(index, 1);
+        saveData();
+        render();
+      }
+    }
+  }
+
+  function archiveAndNew() {
+    const data = appData[currentChild];
+    if (!data.stamps || data.stamps.length === 0) return alert('<span lang="zh-CN">當前頁面還沒有任何印章！</span>');
+    if (confirm(`<span lang="zh-CN">確定要將當前願望「</span>${data.wish}<span lang="zh-CN">」歸檔嗎？</span>`)) {
+      const now = new Date();
+      if (!data.archives) data.archives = [];
+      
+      data.archives.push({ 
+        wish: data.wish, 
+        totalStamps: data.stamps.length, 
+        targetStamps: data.target,
+        completedDate: `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}` 
+      });
+      
+      const newWish = prompt(`<span lang="zh-CN">請輸入【</span>${data.name}<span lang="zh-CN">】的新願望：</span>`, '<span lang="zh-CN">新願望</span>');
+      if (newWish) {
+        const newTarget = prompt(`<span lang="zh-CN">請設定「</span>${newWish}<span lang="zh-CN">」的目標印章數量：</span>`, 30);
+        data.wish = newWish;
+        if (newTarget &amp;&amp; !isNaN(newTarget)) data.target = parseInt(newTarget);
+      }
+      
+      data.stamps = [];
+      saveData();
+      render();
+    }
+  }
+
+  function editWish() {
+    const data = appData[currentChild];
+    const newWish = prompt(`<span lang="zh-CN">請輸入【</span>${data.name}<span lang="zh-CN">】的新願望：</span>`, data.wish);
+    if (newWish) {
+      const newTarget = prompt('<span lang="zh-CN">請設定本次願望的目標印章數量：</span>', data.target);
+      data.wish = newWish;
+      if (newTarget &amp;&amp; !isNaN(newTarget)) data.target = parseInt(newTarget);
+      saveData();
+      render();
+    }
+  }
+
+  render();
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</pre>
+</body>
+</html>
