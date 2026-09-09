@@ -33,8 +33,10 @@
       align-items: center;
     }
     .app-container { width: 100%; max-width: 480px; }
+    
+    /* 選擇小朋友 Tab */
     .tabs {
-      display: flex; background: #FFE4E1; border-radius: 24px; padding: 6px; margin-bottom: 16px;
+      display: flex; background: #FFE4E1; border-radius: 24px; padding: 6px; margin-bottom: 12px;
     }
     .tab-btn {
       flex: 1; border: none; background: transparent; padding: 10px; font-size: 16px; font-weight: bold;
@@ -42,12 +44,31 @@
     }
     .tab-btn.active { background: var(--card-bg); color: var(--primary); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
     .avatar-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); background: #FFF; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+
+    /* 多願望切換列 */
+    .wish-tabs-container {
+      display: flex; align-items: center; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px;
+      scrollbar-width: none;
+    }
+    .wish-tabs-container::-webkit-scrollbar { display: none; }
+    .wish-chip {
+      background: #FFF; border: 1.5px solid #FFC0CB; color: #666; padding: 6px 14px; border-radius: 16px;
+      font-size: 13px; font-weight: bold; white-space: nowrap; cursor: pointer; display: flex; align-items: center; gap: 6px;
+    }
+    .wish-chip.active { background: var(--primary); color: #FFF; border-color: var(--primary); shadow: 0 2px 6px rgba(255,133,161,0.4); }
+    .add-wish-btn {
+      background: #FFE6EC; border: 1.5px dashed var(--primary); color: var(--primary); padding: 6px 12px;
+      border-radius: 16px; font-size: 13px; font-weight: bold; white-space: nowrap; cursor: pointer;
+    }
+
     .card { background: var(--card-bg); border-radius: 20px; padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
     .wish-header { display: flex; justify-content: space-between; align-items: center; }
     .wish-title { font-size: 17px; font-weight: bold; color: #222; }
     .btn-group-sm { display: flex; gap: 6px; }
     .edit-btn { background: #F0F0F0; border: none; padding: 6px 10px; border-radius: 12px; font-size: 12px; cursor: pointer; }
     .archive-btn { background: #FFE6EC; color: var(--primary); border: 1px solid var(--primary); padding: 6px 10px; border-radius: 12px; font-size: 12px; cursor: pointer; font-weight: bold; }
+    .delete-wish-btn { background: #FFF0F0; color: #FF4D4D; border: 1px solid #FF4D4D; padding: 6px 10px; border-radius: 12px; font-size: 12px; cursor: pointer; }
+    
     .progress-bar-bg { background: #EFEFEF; height: 12px; border-radius: 6px; margin: 12px 0 6px 0; overflow: hidden; }
     .progress-bar-fill { background: var(--primary); height: 100%; width: 0%; transition: width 0.3s; }
     .progress-text { font-size: 12px; color: #666; text-align: right; }
@@ -88,6 +109,7 @@
 <div class="app-container">
   <div class="sync-status" id="syncStatus">☁️ 正在連線至雲端同步...</div>
 
+  <!-- 主角切換 -->
   <div class="tabs">
     <button class="tab-btn active" onclick="switchChild('elder')">
       <div id="avatarElder" class="avatar-img">👧</div> 詩詩
@@ -97,12 +119,17 @@
     </button>
   </div>
 
+  <!-- 多願望卡切換列表 -->
+  <div class="wish-tabs-container" id="wishTabs"></div>
+
+  <!-- 當前願望卡資訊 -->
   <div class="card">
     <div class="wish-header">
       <div class="wish-title" id="wishDisplay">願望：載入中...</div>
       <div class="btn-group-sm">
-        <button class="edit-btn" onclick="editWish()">修改願望</button>
+        <button class="edit-btn" onclick="editWish()">修改</button>
         <button class="archive-btn" onclick="archiveAndNew()">📦 歸檔</button>
+        <button class="delete-wish-btn" onclick="deleteCurrentWish()">🗑️</button>
       </div>
     </div>
     <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
@@ -110,13 +137,13 @@
   </div>
 
   <div class="upload-settings">
-    <div style="font-weight:bold; margin-bottom:8px; color:var(--primary);">📷 圖片設定（上傳後全家人手機連動）：</div>
+    <div style="font-weight:bold; margin-bottom:8px; color:var(--primary);">📷 圖片設定（全家人手機連動）：</div>
     <div class="upload-row">
       <span>替換當前主角頭像：</span>
       <input type="file" id="avatarInput" accept="image/*" onchange="handleFileUpload(event, 'avatar')">
     </div>
     <div class="upload-row">
-      <span>替換蓋印章圖案：</span>
+      <span>替換當前願望蓋印圖案：</span>
       <input type="file" id="stampInput" accept="image/*" onchange="handleFileUpload(event, 'stamp')">
     </div>
   </div>
@@ -127,7 +154,7 @@
   </div>
 
   <div class="card">
-    <div class="history-title">📜 本期好事日誌</div>
+    <div class="history-title">📜 本願望好事日誌</div>
     <div id="historyList"></div>
   </div>
 
@@ -139,58 +166,91 @@
 
 <script>
   // ==========================================
-  // 1. 請在此處填入你向 Firebase 申請的配置資訊
+  // Firebase 設定
   // ==========================================
   const firebaseConfig = {
     apiKey: "AIzaSyDmeRItXsjAf3PFXdsSmXa20TgYYefOIRk",
-  authDomain: "kids-stamp-c378b.firebaseapp.com",
-  databaseURL: "https://kids-stamp-c378b-default-rtdb.firebaseio.com",
-  projectId: "kids-stamp-c378b",
-  storageBucket: "kids-stamp-c378b.firebasestorage.app",
-  messagingSenderId: "772769266191",
-  appId: "1:772769266191:web:0f0707b8d7ba22959e417a",
-  measurementId: "G-9LL6B07G6P"
-};
+    authDomain: "kids-stamp-c378b.firebaseapp.com",
+    databaseURL: "https://kids-stamp-c378b-default-rtdb.firebaseio.com",
+    projectId: "kids-stamp-c378b",
+    storageBucket: "kids-stamp-c378b.firebasestorage.app",
+    messagingSenderId: "772769266191",
+    appId: "1:772769266191:web:0f0707b8d7ba22959e417a",
+    measurementId: "G-9LL6B07G6P"
+  };
 
-  // 初始化 Firebase（若已配置則開啟雲端實時同步）
   let dbRef = null;
   let isFirebaseActive = false;
 
   if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
     firebase.initializeApp(firebaseConfig);
-    dbRef = firebase.database().ref('stamp_card_data');
+    dbRef = firebase.database().ref('stamp_card_multi_wishes_v1');
     isFirebaseActive = true;
   }
 
+  // 預設支援多願望 (activeWishIndex 紀錄目前正在看的願望)
   const defaultData = {
-    elder: { name: "詩詩", wish: "去海洋公園玩一天", target: 30, avatar: "", stampImg: "", stamps: [], archives: [] },
-    younger: { name: "韻韻", wish: "買一盒全新彩色筆", target: 30, avatar: "", stampImg: "", stamps: [], archives: [] }
+    elder: {
+      name: "詩詩",
+      avatar: "",
+      activeWishIndex: 0,
+      wishes: [
+        { wish: "去海洋公園玩一天", target: 30, stampImg: "", stamps: [] }
+      ],
+      archives: []
+    },
+    younger: {
+      name: "韻韻",
+      avatar: "",
+      activeWishIndex: 0,
+      wishes: [
+        { wish: "買一盒全新彩色筆", target: 30, stampImg: "", stamps: [] }
+      ],
+      archives: []
+    }
   };
 
   let currentChild = 'elder';
-  let appData = JSON.parse(localStorage.getItem('kids_stamp_v9')) || defaultData;
+  let appData = JSON.parse(localStorage.getItem('kids_stamp_multi_v1')) || defaultData;
 
-  // 儲存資料（同時同步至本地與 Firebase 雲端）
+  // 自動升級舊版單願望資料格式（如果有舊資料）
+  function upgradeDataIfNeeded() {
+    ['elder', 'younger'].forEach(childKey => {
+      if (!appData[childKey].wishes) {
+        const oldWish = appData[childKey].wish || "新願望";
+        const oldTarget = appData[childKey].target || 30;
+        const oldStampImg = appData[childKey].stampImg || "";
+        const oldStamps = appData[childKey].stamps || [];
+        
+        appData[childKey].wishes = [
+          { wish: oldWish, target: oldTarget, stampImg: oldStampImg, stamps: oldStamps }
+        ];
+        appData[childKey].activeWishIndex = 0;
+      }
+    });
+  }
+  upgradeDataIfNeeded();
+
   function saveData() {
-    localStorage.setItem('kids_stamp_v9', JSON.stringify(appData));
+    localStorage.setItem('kids_stamp_multi_v1', JSON.stringify(appData));
     if (isFirebaseActive) {
       dbRef.set(appData);
     }
   }
 
-  // 監聽 Firebase 雲端資料變更（當爸爸或你在另一部手機修改時，會自動更新畫面）
   if (isFirebaseActive) {
     dbRef.on('value', (snapshot) => {
       const data = snapshot.val();
       if (data) {
         appData = data;
-        localStorage.setItem('kids_stamp_v9', JSON.stringify(appData));
-        document.getElementById('syncStatus').innerText = '🟢 雲端同步中（資料已是最新）';
+        upgradeDataIfNeeded();
+        localStorage.setItem('kids_stamp_multi_v1', JSON.stringify(appData));
+        document.getElementById('syncStatus').innerText = '🟢 雲端同步中（多願望模式）';
         render();
       }
     });
   } else {
-    document.getElementById('syncStatus').innerText = '⚠️ 目前使用單機模式（尚未設定 Firebase）';
+    document.getElementById('syncStatus').innerText = '⚠️ 目前使用單機模式';
   }
 
   function compressImage(file, callback) {
@@ -201,7 +261,7 @@
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-        const max = 200; // 壓縮頭像/印章圖案至 200px 提升同步速度
+        const max = 200;
         if (width > height && width > max) { height *= max / width; width = max; }
         else if (height > max) { width *= max / height; height = max; }
         canvas.width = width; canvas.height = height;
@@ -219,10 +279,12 @@
     if (!file) return;
 
     compressImage(file, function(base64Img) {
+      const childData = appData[currentChild];
       if (type === 'avatar') {
-        appData[currentChild].avatar = base64Img;
+        childData.avatar = base64Img;
       } else if (type === 'stamp') {
-        appData[currentChild].stampImg = base64Img;
+        const activeWish = getCurrentWishObj();
+        if (activeWish) activeWish.stampImg = base64Img;
       }
       saveData();
       render();
@@ -237,6 +299,59 @@
     render();
   }
 
+  function getCurrentWishObj() {
+    const childData = appData[currentChild];
+    if (!childData.wishes || childData.wishes.length === 0) return null;
+    if (childData.activeWishIndex >= childData.wishes.length) {
+      childData.activeWishIndex = 0;
+    }
+    return childData.wishes[childData.activeWishIndex];
+  }
+
+  function selectWish(index) {
+    appData[currentChild].activeWishIndex = index;
+    saveData();
+    render();
+  }
+
+  function addNewWish() {
+    const childData = appData[currentChild];
+    const wishName = prompt(`請輸入【${childData.name}】的新願望名稱：`, '新願望');
+    if (!wishName || !wishName.trim()) return;
+
+    const targetInput = prompt(`請設定「${wishName}」的目標印章數：`, 30);
+    const target = (targetInput && !isNaN(targetInput)) ? parseInt(targetInput) : 30;
+
+    childData.wishes.push({
+      wish: wishName.trim(),
+      target: target,
+      stampImg: "",
+      stamps: []
+    });
+
+    childData.activeWishIndex = childData.wishes.length - 1; // 自動切換到新願望
+    saveData();
+    render();
+  }
+
+  function deleteCurrentWish() {
+    const childData = appData[currentChild];
+    const activeWish = getCurrentWishObj();
+    if (!activeWish) return;
+
+    if (childData.wishes.length <= 1) {
+      alert('至少要保留一個進行中的願望喔！');
+      return;
+    }
+
+    if (confirm(`確定要刪除願望「${activeWish.wish}」嗎？裡面的集章紀錄也會一併被刪除！`)) {
+      childData.wishes.splice(childData.activeWishIndex, 1);
+      childData.activeWishIndex = 0;
+      saveData();
+      render();
+    }
+  }
+
   function renderAvatar(elementId, imgData, defaultEmoji) {
     const el = document.getElementById(elementId);
     if (imgData) {
@@ -247,35 +362,61 @@
   }
 
   function render() {
-    const data = appData[currentChild];
-    
+    const childData = appData[currentChild];
     renderAvatar('avatarElder', appData.elder.avatar, '👧');
     renderAvatar('avatarYounger', appData.younger.avatar, '👧');
 
-    document.getElementById('wishDisplay').innerText = `願望：${data.wish}`;
-    const stampsList = data.stamps || [];
-    const count = stampsList.length;
-    const percent = Math.min((count / data.target) * 100, 100);
-    document.getElementById('progressFill').style.width = `${percent}%`;
-    document.getElementById('progressText').innerText = `${count} / ${data.target} 印章`;
+    // 渲染願望標籤列表
+    const wishTabsContainer = document.getElementById('wishTabs');
+    wishTabsContainer.innerHTML = '';
+    
+    childData.wishes.forEach((w, idx) => {
+      const chip = document.createElement('div');
+      chip.className = `wish-chip ${idx === childData.activeWishIndex ? 'active' : ''}`;
+      chip.innerText = `🎯 ${w.wish}`;
+      chip.onclick = () => selectWish(idx);
+      wishTabsContainer.appendChild(chip);
+    });
 
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-wish-btn';
+    addBtn.innerText = '➕ 新增願望';
+    addBtn.onclick = addNewWish;
+    wishTabsContainer.appendChild(addBtn);
+
+    // 取得當前顯示的願望
+    const activeWish = getCurrentWishObj();
+
+    if (!activeWish) {
+      document.getElementById('wishDisplay').innerText = '願望：無';
+      document.getElementById('stampGrid').innerHTML = '';
+      return;
+    }
+
+    document.getElementById('wishDisplay').innerText = `願望：${activeWish.wish}`;
+    const stampsList = activeWish.stamps || [];
+    const count = stampsList.length;
+    const percent = Math.min((count / activeWish.target) * 100, 100);
+    document.getElementById('progressFill').style.width = `${percent}%`;
+    document.getElementById('progressText').innerText = `${count} / ${activeWish.target} 印章`;
+
+    // 蓋印格子渲染
     const grid = document.getElementById('stampGrid');
     grid.innerHTML = '';
 
-    for (let i = 0; i < data.target; i++) {
+    for (let i = 0; i < activeWish.target; i++) {
       const box = document.createElement('div');
       box.className = 'stamp-box';
       
       if (i < count) {
         box.classList.add('stamped');
         const stampDate = stampsList[i].date.split('/')[1] + '/' + stampsList[i].date.split('/')[2];
-        if (data.stampImg) {
-          box.innerHTML = `<img src="${data.stampImg}" alt="Good job"><span class="date">${stampDate}</span>`;
+        if (activeWish.stampImg) {
+          box.innerHTML = `<img src="${activeWish.stampImg}" alt="Good job"><span class="date">${stampDate}</span>`;
         } else {
           box.innerHTML = `<span style="font-size:20px;">💮</span><span class="date">${stampDate}</span>`;
         }
         box.onclick = () => onStampedClick(i);
-
       } else {
         if (i === count) {
           box.classList.add('next-stamp');
@@ -283,17 +424,18 @@
         box.innerText = i + 1;
         box.onclick = () => onBlankClick(i);
       }
-
       grid.appendChild(box);
     }
 
+    // 好事日誌
     const historyList = document.getElementById('historyList');
     historyList.innerHTML = stampsList.length === 0 
-      ? '<div style="color:#AAA; text-align:center; font-size:12px; padding:10px;">未有紀錄，點擊上方格子蓋第一個章！</div>'
+      ? '<div style="color:#AAA; text-align:center; font-size:12px; padding:10px;">本願望尚未蓋章，點擊上方格子蓋章！</div>'
       : [...stampsList].reverse().map(item => `<div class="history-item"><span>${item.reason}</span><span class="history-date">${item.date}</span></div>`).join('');
 
+    // 過往達成歷程
     const archiveList = document.getElementById('archiveList');
-    const archives = data.archives || [];
+    const archives = childData.archives || [];
     if (archives.length === 0) {
       archiveList.innerHTML = '<div style="color:#AAA; text-align:center; font-size:12px; padding:10px;">尚未有已歸檔的願望</div>';
     } else {
@@ -317,25 +459,26 @@
   }
 
   function onBlankClick(index) {
-    const data = appData[currentChild];
-    if (!data.stamps) data.stamps = [];
-    if (index > data.stamps.length) {
-      alert(`請先點擊第 ${data.stamps.length + 1} 個格子按順序蓋章喔！`);
+    const activeWish = getCurrentWishObj();
+    if (!activeWish.stamps) activeWish.stamps = [];
+    if (index > activeWish.stamps.length) {
+      alert(`請先點擊第 ${activeWish.stamps.length + 1} 個格子按順序蓋章喔！`);
       return;
     }
     
-    const reason = prompt(`今天【${data.name}】做了什麼好事？`, '幫忙收拾玩具/準時完成功課');
+    const childName = appData[currentChild].name;
+    const reason = prompt(`今天【${childName}】做了什麼好事？`, '幫忙收拾玩具/準時完成功課');
     if (reason && reason.trim()) {
       const now = new Date();
-      data.stamps.push({ date: `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`, reason: reason.trim() });
+      activeWish.stamps.push({ date: `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`, reason: reason.trim() });
       saveData();
       render();
     }
   }
 
   function onStampedClick(index) {
-    const data = appData[currentChild];
-    const item = data.stamps[index];
+    const activeWish = getCurrentWishObj();
+    const item = activeWish.stamps[index];
     
     const choice = prompt(`【第 ${index + 1} 個印章】\n當前好事：${item.reason}\n日期：${item.date}\n\n請選擇操作：\n輸入 1：修改好事內容\n輸入 2：剔走（刪除）這個印章`, '1');
     
@@ -348,16 +491,63 @@
       }
     } else if (choice === '2') {
       if (confirm(`確定要剔走第 ${index + 1} 個印章嗎？`)) {
-        data.stamps.splice(index, 1);
+        activeWish.stamps.splice(index, 1);
         saveData();
         render();
       }
     }
   }
 
+  function editWish() {
+    const activeWish = getCurrentWishObj();
+    const newWish = prompt(`請修改願望名稱：`, activeWish.wish);
+    if (newWish) {
+      const newTarget = prompt('請設定目標印章數：', activeWish.target);
+      activeWish.wish = newWish.trim();
+      if (newTarget && !isNaN(newTarget)) activeWish.target = parseInt(newTarget);
+      saveData();
+      render();
+    }
+  }
+
+  function archiveAndNew() {
+    const childData = appData[currentChild];
+    const activeWish = getCurrentWishObj();
+    if (!activeWish.stamps || activeWish.stamps.length === 0) return alert('當前願望還沒有任何印章！');
+    
+    if (confirm(`確定要將當前願望「${activeWish.wish}」歸檔嗎？`)) {
+      const now = new Date();
+      if (!childData.archives) childData.archives = [];
+      
+      childData.archives.push({ 
+        wish: activeWish.wish, 
+        totalStamps: activeWish.stamps.length, 
+        targetStamps: activeWish.target,
+        completedDate: `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}` 
+      });
+      
+      // 歸檔後如果只有這一個願望，提示輸入新願望；如果有其他願望，刪除當前願望
+      if (childData.wishes.length === 1) {
+        const newWish = prompt(`請輸入【${childData.name}】的新願望：`, '新願望');
+        if (newWish) {
+          const newTarget = prompt(`請設定「${newWish}」的目標印章數量：`, 30);
+          activeWish.wish = newWish.trim();
+          if (newTarget && !isNaN(newTarget)) activeWish.target = parseInt(newTarget);
+          activeWish.stamps = [];
+        }
+      } else {
+        childData.wishes.splice(childData.activeWishIndex, 1);
+        childData.activeWishIndex = 0;
+      }
+      
+      saveData();
+      render();
+    }
+  }
+
   function onArchiveClick(index) {
-    const data = appData[currentChild];
-    const arc = data.archives[index];
+    const childData = appData[currentChild];
+    const arc = childData.archives[index];
     const targetVal = arc.targetStamps || arc.totalStamps;
     
     const choice = prompt(`【過往歷程管理】\n當前願望：${arc.wish}\n實收印章：${arc.totalStamps} 個\n目標印章：${targetVal} 個\n完成日期：${arc.completedDate}\n\n請選擇操作：\n輸入 1：修改此筆歷程資料\n輸入 2：刪除此筆歷程`, '1');
@@ -378,50 +568,11 @@
       saveData();
       render();
     } else if (choice === '2') {
-      if (confirm(`確定要刪除「${arc.wish}」這筆過往歷程嗎？刪除後無法恢復喔！`)) {
-        data.archives.splice(index, 1);
+      if (confirm(`確定要刪除「${arc.wish}」這筆過往歷程嗎？`)) {
+        childData.archives.splice(index, 1);
         saveData();
         render();
       }
-    }
-  }
-
-  function archiveAndNew() {
-    const data = appData[currentChild];
-    if (!data.stamps || data.stamps.length === 0) return alert('當前頁面還沒有任何印章！');
-    if (confirm(`確定要將當前願望「${data.wish}」歸檔嗎？`)) {
-      const now = new Date();
-      if (!data.archives) data.archives = [];
-      
-      data.archives.push({ 
-        wish: data.wish, 
-        totalStamps: data.stamps.length, 
-        targetStamps: data.target,
-        completedDate: `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}` 
-      });
-      
-      const newWish = prompt(`請輸入【${data.name}】的新願望：`, '新願望');
-      if (newWish) {
-        const newTarget = prompt(`請設定「${newWish}」的目標印章數量：`, 30);
-        data.wish = newWish;
-        if (newTarget && !isNaN(newTarget)) data.target = parseInt(newTarget);
-      }
-      
-      data.stamps = [];
-      saveData();
-      render();
-    }
-  }
-
-  function editWish() {
-    const data = appData[currentChild];
-    const newWish = prompt(`請輸入【${data.name}】的新願望：`, data.wish);
-    if (newWish) {
-      const newTarget = prompt('請設定本次願望的目標印章數量：', data.target);
-      data.wish = newWish;
-      if (newTarget && !isNaN(newTarget)) data.target = parseInt(newTarget);
-      saveData();
-      render();
     }
   }
 
